@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>Cookie RNG: Infinite Crumb</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
     
@@ -15,156 +16,132 @@
         font-family: 'Inter', sans-serif;
         background-color: #1a1a1a;
         color: #f3f4f6;
-        overflow: hidden;
+        margin: 0;
         height: 100vh;
-        width: 100vw;
+        overflow: hidden;
         position: fixed;
+        width: 100%;
       }
-      h1, h2, h3, .font-display { font-family: 'Fredoka', sans-serif; }
+      h1, .font-display { font-family: 'Fredoka', sans-serif; }
+      
+      /* THE AI STUDIO ANIMATIONS */
       .cookie-spin { animation: spin-slow 20s linear infinite; }
       @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      
       .plus-one {
         position: absolute;
         pointer-events: none;
         animation: floatUp 1s ease-out forwards;
         font-weight: 800;
         color: #fbbf24;
-        z-index: 50;
       }
       @keyframes floatUp {
         0% { transform: translateY(0) scale(1); opacity: 1; }
         100% { transform: translateY(-80px) scale(1.2); opacity: 0; }
       }
+
+      /* Prevent iPad Zoom/Selection */
       * {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         user-select: none;
         touch-action: manipulation;
       }
-      .inventory-item {
-        animation: slideIn 0.3s ease-out;
-      }
-      @keyframes slideIn {
-        from { opacity: 0; transform: translateX(-10px); }
-        to { opacity: 1; transform: translateX(0); }
-      }
     </style>
 </head>
-<body class="flex flex-col items-center justify-between p-6 pb-12">
+<body class="flex flex-col items-center p-6">
 
-    <div class="text-center mt-12">
-        <h1 class="text-4xl font-bold text-amber-500 tracking-tight italic">Infinite Crumb</h1>
-        <div class="flex gap-6 mt-2 justify-center font-mono text-zinc-400 uppercase text-xs">
-            <span>Bits: <span id="bits-display" class="text-white">0</span></span>
-            <span>Luck: <span id="luck-display" class="text-white">1.0</span>x</span>
-        </div>
+    <div class="mt-12 text-center">
+        <h1 class="text-4xl font-extrabold text-amber-500 tracking-tight italic">COOKIE RNG</h1>
+        <p class="text-[10px] text-zinc-500 font-mono mt-1 uppercase tracking-[0.3em]">Infinite Crumb Edition</p>
     </div>
 
-    <div class="relative flex items-center justify-center">
-        <div id="cookie" class="text-[160px] cursor-pointer active:scale-90 transition-transform cookie-spin select-none drop-shadow-2xl">
+    <div class="flex gap-8 mt-6 bg-black/30 px-6 py-2 rounded-full border border-white/5 font-mono text-xs">
+        <div>BITS: <span id="bits-display" class="text-white font-bold">0</span></div>
+        <div>LUCK: <span id="luck-display" class="text-white font-bold">1.0</span>x</div>
+    </div>
+
+    <div class="flex-grow flex items-center justify-center relative">
+        <div id="cookie" class="text-[160px] cursor-pointer active:scale-90 transition-transform cookie-spin select-none">
             🍪
         </div>
     </div>
 
-    <div class="w-full max-w-sm bg-zinc-900/90 backdrop-blur-xl p-6 rounded-3xl border border-white/10 space-y-4 shadow-2xl">
+    <div class="w-full max-w-sm mb-8 space-y-4">
         <div class="grid grid-cols-2 gap-4">
-            <button onclick="roll()" class="bg-amber-600 py-4 rounded-2xl font-black uppercase text-sm shadow-lg active:bg-amber-700 transition-all active:scale-95">
-                Summon
+            <button onclick="roll()" class="bg-amber-600 hover:bg-amber-500 py-4 rounded-2xl font-black uppercase text-sm shadow-[0_5px_0_#92400e] active:shadow-none active:translate-y-[5px] transition-all">
+                SUMMON
             </button>
-            <button onclick="buyLuck()" class="bg-zinc-800 py-4 rounded-2xl font-black uppercase text-sm border border-white/5 active:bg-zinc-700 transition-all active:scale-95">
-                Luck Up (<span id="luck-cost">50</span>)
+            <button onclick="buyLuck()" class="bg-zinc-800 hover:bg-zinc-700 py-4 rounded-2xl font-black uppercase text-sm border border-white/10 active:scale-95 transition-all">
+                LUCK UP (<span id="luck-cost">50</span>)
             </button>
         </div>
 
-        <div class="bg-black/40 rounded-2xl p-4 border border-white/5">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Recent Pulls</h2>
-                <button onclick="clearSave()" class="text-[8px] text-red-500/50 uppercase font-bold hover:text-red-500">Reset Data</button>
-            </div>
-            <div id="inventory" class="h-32 overflow-y-auto space-y-2 text-sm pr-2 custom-scroll">
+        <div class="bg-zinc-900/80 backdrop-blur-md rounded-2xl p-4 border border-white/5">
+            <h2 class="text-[9px] uppercase font-black text-zinc-500 mb-3 tracking-widest">Recent Stash</h2>
+            <div id="inventory" class="h-28 overflow-y-auto space-y-2 pr-2">
                 </div>
         </div>
     </div>
 
     <script>
-        // Game State
+        // Game Logic from AI Studio
         let bits = 0;
         let luck = 1.0;
         let luckCost = 50;
         let inventory = [];
 
-        // Elements
         const bitsText = document.getElementById('bits-display');
         const luckText = document.getElementById('luck-display');
         const costText = document.getElementById('luck-cost');
         const invList = document.getElementById('inventory');
         const cookie = document.getElementById('cookie');
 
-        // --- SAVE SYSTEM ---
-        function saveGame() {
-            const gameData = {
-                bits: bits,
-                luck: luck,
-                luckCost: luckCost,
-                inventory: inventory
-            };
-            localStorage.setItem('cookieRNGSave', JSON.stringify(gameData));
-        }
-
-        function loadGame() {
-            const savedData = localStorage.getItem('cookieRNGSave');
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                bits = data.bits || 0;
-                luck = data.luck || 1.0;
-                luckCost = data.luckCost || 50;
-                inventory = data.inventory || [];
-                updateUI();
-                renderInventory();
-            }
-        }
-
-        function clearSave() {
-            if(confirm("Are you sure? This will delete ALL your bits and luck!")) {
-                localStorage.removeItem('cookieRNGSave');
-                location.reload();
-            }
-        }
-
-        // --- CORE LOGIC ---
-        cookie.addEventListener('click', (e) => {
-            bits++;
-            createPlusOne(e.pageX, e.pageY);
+        // Load Save
+        if(localStorage.getItem('crng_save')) {
+            const data = JSON.parse(localStorage.getItem('crng_save'));
+            bits = data.bits; luck = data.luck; luckCost = data.luckCost;
             updateUI();
-            saveGame();
-        });
+        }
+
+        function save() {
+            localStorage.setItem('crng_save', JSON.stringify({bits, luck, luckCost}));
+        }
+
+        cookie.onclick = (e) => {
+            bits++;
+            createPlusOne(e.clientX, e.clientY);
+            updateUI();
+            save();
+        };
 
         function createPlusOne(x, y) {
             const el = document.createElement('div');
             el.className = 'plus-one';
-            el.style.left = (x - 10) + 'px';
-            el.style.top = (y - 20) + 'px';
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
             el.innerText = '+1';
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 1000);
         }
 
         const COOKIES = [
-            { name: "CHRONO COOKIE", rarity: "DIVINE", chance: 0.001, color: "text-cyan-400 font-black" },
+            { name: "CHRONO COOKIE", rarity: "DIVINE", chance: 0.001, color: "text-cyan-400 font-black shadow-cyan-500" },
             { name: "Golden Chip", rarity: "RARE", chance: 0.05, color: "text-yellow-400 font-bold" },
             { name: "Sugar Frost", rarity: "UNCOMMON", chance: 0.2, color: "text-white" },
             { name: "Classic Cookie", rarity: "COMMON", chance: 1.0, color: "text-zinc-500" }
         ];
 
         function roll() {
-            const rollVal = Math.random() / luck;
-            const item = COOKIES.find(c => rollVal <= c.chance) || COOKIES[COOKIES.length - 1];
+            const r = Math.random() / luck;
+            const item = COOKIES.find(c => r <= c.chance) || COOKIES[3];
             
-            inventory.unshift({ ...item, time: Date.now() });
-            if (inventory.length > 20) inventory.pop();
+            const div = document.createElement('div');
+            div.className = "flex justify-between items-center py-2 border-b border-white/5 animate-pulse";
+            div.innerHTML = `<span class="${item.color}">${item.name}</span> <span class="text-[8px] opacity-40 font-bold uppercase">${item.rarity}</span>`;
             
-            renderInventory();
-            saveGame();
+            invList.prepend(div);
+            if(invList.children.length > 10) invList.lastChild.remove();
         }
 
         function buyLuck() {
@@ -173,7 +150,7 @@
                 luck += 0.5;
                 luckCost = Math.floor(luckCost * 2.2);
                 updateUI();
-                saveGame();
+                save();
             }
         }
 
@@ -182,19 +159,6 @@
             luckText.innerText = luck.toFixed(1);
             costText.innerText = luckCost.toLocaleString();
         }
-
-        function renderInventory() {
-            invList.innerHTML = '';
-            inventory.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "inventory-item flex justify-between items-center py-2 border-b border-white/5 last:border-0";
-                div.innerHTML = `<span class="${item.color}">${item.name}</span> <span class="text-[9px] opacity-40 uppercase font-bold">${item.rarity}</span>`;
-                invList.appendChild(div);
-            });
-        }
-
-        // Initialize
-        loadGame();
     </script>
 </body>
 </html>
