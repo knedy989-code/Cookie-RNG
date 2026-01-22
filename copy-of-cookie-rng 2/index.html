@@ -1,17 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <title>Cookie RNG: Infinite Crumb</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+    
     <style>
       body {
         font-family: 'Inter', sans-serif;
         background-color: #1a1a1a;
         color: #f3f4f6;
-        overflow-x: hidden;
+        overflow: hidden; /* Fix for iPad toolbar/bouncing */
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
       }
       h1, h2, h3, .font-display {
         font-family: 'Fredoka', sans-serif;
@@ -24,58 +31,120 @@
         to { transform: rotate(360deg); }
       }
       /* Click Effects */
+      .plus-one {
+        position: absolute;
+        pointer-events: none;
+        animation: floatUp 1s ease-out forwards;
+        font-weight: 800;
+        color: #fbbf24;
+      }
       @keyframes floatUp {
         0% { transform: translateY(0) scale(1); opacity: 1; }
         100% { transform: translateY(-80px) scale(1.2); opacity: 0; }
       }
-      @keyframes crumble {
-        0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-        100% { transform: translate(var(--tx), var(--ty)) rotate(var(--r)) scale(0); opacity: 0; }
-      }
-      /* UI Animations */
-      @keyframes popIn {
-        0% { transform: scale(0.8); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes slideUp {
-        from { transform: translateY(100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #2d2d2d; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #555; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #777; 
+      /* Prevent long-press menu on iPad */
+      * {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: manipulation;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react/": "https://esm.sh/react@^19.2.3/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+<body class="flex flex-col items-center justify-between p-6">
+
+    <div class="text-center mt-8">
+        <h1 class="text-4xl font-bold text-amber-500 tracking-tight">Infinite Crumb</h1>
+        <div class="flex gap-6 mt-2 justify-center font-mono text-zinc-400 uppercase text-xs">
+            <span>Bits: <span id="bits-display" class="text-white">0</span></span>
+            <span>Luck: <span id="luck-display" class="text-white">1.0</span>x</span>
+        </div>
+    </div>
+
+    <div class="relative flex items-center justify-center">
+        <div id="cookie" class="text-[140px] cursor-pointer active:scale-90 transition-transform cookie-spin select-none">
+            🍪
+        </div>
+    </div>
+
+    <div class="w-full max-w-sm bg-zinc-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/5 space-y-4 mb-4">
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="roll()" class="bg-amber-600 py-4 rounded-2xl font-black uppercase text-sm shadow-lg active:bg-amber-700 transition-colors">
+                Summon
+            </button>
+            <button onclick="buyLuck()" class="bg-zinc-800 py-4 rounded-2xl font-black uppercase text-sm border border-white/5 active:bg-zinc-700 transition-colors">
+                Luck Up (<span id="luck-cost">50</span>)
+            </button>
+        </div>
+
+        <div class="bg-black/20 rounded-xl p-3">
+            <h2 class="text-[10px] uppercase font-black text-zinc-500 mb-2 tracking-widest">Recent Pulls</h2>
+            <div id="inventory" class="h-24 overflow-y-auto space-y-2 text-sm pr-2">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        let bits = 0;
+        let luck = 1.0;
+        let luckCost = 50;
+
+        const bitsText = document.getElementById('bits-display');
+        const luckText = document.getElementById('luck-display');
+        const costText = document.getElementById('luck-cost');
+        const invList = document.getElementById('inventory');
+        const cookie = document.getElementById('cookie');
+
+        // Click Cookie Logic
+        cookie.addEventListener('click', (e) => {
+            bits++;
+            createPlusOne(e.pageX, e.pageY);
+            updateUI();
+        });
+
+        function createPlusOne(x, y) {
+            const el = document.createElement('div');
+            el.className = 'plus-one';
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.innerText = '+1';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        // RNG Logic
+        const COOKIES = [
+            { name: "CHRONO COOKIE", rarity: "DIVINE", chance: 0.001, color: "text-cyan-400 font-black" },
+            { name: "Golden Chip", rarity: "RARE", chance: 0.05, color: "text-yellow-400 font-bold" },
+            { name: "Sugar Frost", rarity: "UNCOMMON", chance: 0.2, color: "text-white" },
+            { name: "Classic Cookie", rarity: "COMMON", chance: 1.0, color: "text-zinc-500" }
+        ];
+
+        function roll() {
+            const rollVal = Math.random() / luck;
+            const item = COOKIES.find(c => rollVal <= c.chance) || COOKIES[COOKIES.length - 1];
+            
+            const div = document.createElement('div');
+            div.className = "flex justify-between items-center py-1 border-b border-white/5 last:border-0";
+            div.innerHTML = `<span class="${item.color}">${item.name}</span> <span class="text-[9px] opacity-50 uppercase">${item.rarity}</span>`;
+            
+            invList.prepend(div);
+        }
+
+        function buyLuck() {
+            if (bits >= luckCost) {
+                bits -= luckCost;
+                luck += 0.5;
+                luckCost = Math.floor(luckCost * 2.2);
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            bitsText.innerText = bits;
+            luckText.innerText = luck.toFixed(1);
+            costText.innerText = luckCost;
+        }
+    </script>
 </body>
 </html>
