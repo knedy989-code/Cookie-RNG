@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Cookie RNG: Infinite Crumb</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,27 +18,22 @@
             font-family: 'Inter', sans-serif;
             background-color: #1a1a1a;
             color: #f3f4f6;
+            margin: 0;
+            padding: 0;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
         }
         h1, h2, h3, .font-display { font-family: 'Fredoka', sans-serif; }
         
-        /* Original Animations from index.html */
-        .cookie-spin { animation: spin-slow 20s linear infinite; }
-        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* Animations */
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1.2); opacity: 0; } }
         @keyframes crumble { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) rotate(var(--r)) scale(0); opacity: 0; } }
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        .animate-popIn { animation: popIn 0.3s ease-out forwards; }
         .animate-floatUp { animation: floatUp 0.8s ease-out forwards; }
         .animate-crumble { animation: crumble 0.6s ease-in forwards; }
-
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #2d2d2d; }
-        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
@@ -59,7 +54,7 @@
         import { createRoot } from 'react-dom/client';
         import * as Lucide from 'lucide-react';
 
-        // --- CONSTANTS & TYPES (From constants.ts & types.ts) ---
+        // --- CONSTANTS & DATA ---
         const Rarity = {
             COMMON: 'Common', UNCOMMON: 'Uncommon', RARE: 'Rare', 
             ULTRA_RARE: 'Ultra Rare', EPIC: 'Epic', LEGENDARY: 'Legendary', 
@@ -72,109 +67,115 @@
             [Rarity.MYTHICAL]: '#F43F5E', [Rarity.ASCENDED]: '#22D3EE', [Rarity.DIVINE]: '#FFFFFF'
         };
 
-        const RARITY_DURABILITY = {
-            [Rarity.COMMON]: 50, [Rarity.UNCOMMON]: 100, [Rarity.RARE]: 250,
-            [Rarity.ULTRA_RARE]: 600, [Rarity.EPIC]: 1000, [Rarity.LEGENDARY]: 2500,
-            [Rarity.MYTHICAL]: 5000, [Rarity.ASCENDED]: 10000, [Rarity.DIVINE]: 25000
-        };
-
         const UPGRADE_COSTS = {
             clickPower: (l) => Math.floor(50 * Math.pow(1.5, l)),
             luck: (l) => l < 5 ? [250, 500, 600, 700, 888, 1000][l] : Math.floor(1000 * Math.pow(1.5, l - 4)),
-            autoClicker: (l) => l < 5 ? [300, 500, 680, 790, 1000][l] : Math.floor(1000 * Math.pow(1.5, l - 4)),
-            ascension: (l) => l === 0 ? 100000 : l === 1 ? 500000 : 999999999
+            autoClicker: (l) => l < 5 ? [300, 500, 680, 790, 1000][l] : Math.floor(1000 * Math.pow(1.5, l - 4))
         };
 
         // --- COMPONENTS ---
+        
+        const NavButton = ({ active, icon: Icon, label, onClick }) => (
+            <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-colors ${active ? 'text-amber-500' : 'text-zinc-500'}`}>
+                <Icon size={24} />
+                <span className="text-[10px] font-bold uppercase">{label}</span>
+            </button>
+        );
 
-        // 1. Inventory Component (From Inventory.tsx)
-        const Inventory = ({ state, onSell, onEquip }) => {
-            const sorted = [...state.cookies].sort((a, b) => (b.baseValue - a.baseValue));
-            return (
-                <div className="p-4 grid grid-cols-2 gap-4 max-w-md mx-auto">
-                    {sorted.map(cookie => (
-                        <div key={cookie.id} className="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
-                            <div className="w-10 h-10 rounded-full mb-2" style={{ backgroundColor: cookie.colorHex }}></div>
-                            <h4 className="text-sm font-bold truncate">{cookie.name}</h4>
-                            <p className="text-[10px] text-zinc-500 uppercase">{cookie.rarity}</p>
-                            <button 
-                                onClick={() => onEquip(cookie.id)}
-                                className={`mt-2 w-full text-xs py-1 rounded ${state.activeCookieId === cookie.id ? 'bg-amber-600' : 'bg-zinc-700'}`}
-                            >
-                                {state.activeCookieId === cookie.id ? 'Equipped' : 'Equip'}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            );
-        };
-
-        // 2. Main Game Logic (From App.tsx & CookieClicker.tsx)
         const App = () => {
             const [gameState, setGameState] = useState({
-                bits: 0, totalBitsEarned: 0, clickCount: 0, cookies: [],
-                upgrades: { clickPowerLevel: 1, luckLevel: 0, autoClickerLevel: 0, ascensionLevel: 0 },
-                activeEffects: { clickMultiplier: 1, clickMultiplierEndTime: 0, protectedClicks: 0 },
-                activeCookieId: undefined
+                bits: 0,
+                totalBitsEarned: 0,
+                cookies: [],
+                activeCookieId: null,
+                upgrades: { clickPowerLevel: 1, luckLevel: 0, autoClickerLevel: 0 }
             });
             const [activeTab, setActiveTab] = useState('roll');
 
-            const handleCookieClick = () => {
-                const activeCookie = gameState.cookies.find(c => c.id === gameState.activeCookieId);
-                const cookieMult = activeCookie ? activeCookie.baseValue : 1;
-                const power = gameState.upgrades.clickPowerLevel * cookieMult;
-                
+            // Load Game
+            useEffect(() => {
+                const saved = localStorage.getItem('cookie_rng_save');
+                if (saved) setGameState(JSON.parse(saved));
+            }, []);
+
+            // Save Game
+            useEffect(() => {
+                localStorage.setItem('cookie_rng_save', JSON.stringify(gameState));
+            }, [gameState]);
+
+            const handleRoll = () => {
+                const newCookie = {
+                    id: Date.now().toString(),
+                    name: "Fresh Batch",
+                    rarity: Rarity.COMMON,
+                    baseValue: 1.5,
+                    colorHex: '#D2691E'
+                };
                 setGameState(prev => ({
                     ...prev,
-                    bits: prev.bits + power,
-                    totalBitsEarned: prev.totalBitsEarned + power,
-                    clickCount: prev.clickCount + 1
+                    cookies: [...prev.cookies, newCookie],
+                    activeCookieId: newCookie.id
                 }));
             };
 
-            const handleEquip = (id) => setGameState(prev => ({ ...prev, activeCookieId: id }));
+            const handleMainClick = () => {
+                const activeCookie = gameState.cookies.find(c => c.id === gameState.activeCookieId);
+                const mult = activeCookie ? activeCookie.baseValue : 1;
+                const power = gameState.upgrades.clickPowerLevel * mult;
+                setGameState(prev => ({ 
+                    ...prev, 
+                    bits: prev.bits + power,
+                    totalBitsEarned: prev.totalBitsEarned + power 
+                }));
+            };
 
             return (
-                <div className="min-h-screen flex flex-col items-center">
-                    <header className="w-full max-w-md flex justify-between items-center p-6 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
-                        <h1 className="text-xl font-bold text-amber-500">Cookie RNG</h1>
-                        <div className="flex items-center gap-2 bg-black/40 px-4 py-1.5 rounded-full border border-white/5">
-                            <span className="text-amber-400 font-mono font-bold">{Math.floor(gameState.bits).toLocaleString()}</span>
-                            <Lucide.Zap size={14} className="text-amber-400" />
+                <div className="min-h-screen bg-zinc-950 flex flex-col text-white">
+                    {/* Header */}
+                    <header className="p-6 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md">
+                        <div>
+                            <h1 className="text-xl font-black text-amber-500 uppercase tracking-tighter">Cookie RNG</h1>
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase">Phase: {gameState.upgrades.luckLevel}</p>
+                        </div>
+                        <div className="bg-black/40 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2">
+                            <Lucide.Zap size={16} className="text-amber-400" />
+                            <span className="font-mono font-bold text-lg">{Math.floor(gameState.bits).toLocaleString()}</span>
                         </div>
                     </header>
 
-                    <main className="flex-1 w-full max-w-md pb-24">
+                    {/* Viewport */}
+                    <main className="flex-1 overflow-y-auto hide-scrollbar p-4">
                         {activeTab === 'roll' && (
-                            <div className="flex flex-col items-center justify-center pt-20">
-                                <button 
-                                    onClick={handleCookieClick}
-                                    className="relative transition-transform active:scale-90 duration-75"
-                                >
-                                    <div className="absolute inset-0 blur-3xl opacity-20 bg-amber-600 rounded-full"></div>
-                                    <Lucide.Cookie size={160} className="text-amber-700 drop-shadow-2xl relative z-0" />
+                            <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                                <button onClick={handleMainClick} className="relative active:scale-90 transition-transform">
+                                    <Lucide.Cookie size={180} className="text-amber-700 drop-shadow-[0_0_30px_rgba(180,83,9,0.3)]" />
                                 </button>
-                                <div className="mt-12 text-center animate-pulse text-zinc-500 uppercase tracking-widest text-sm">
-                                    Tap to Crumble
-                                </div>
+                                <button onClick={handleRoll} className="mt-12 bg-amber-600 hover:bg-amber-500 px-8 py-3 rounded-full font-bold uppercase tracking-widest text-sm shadow-lg shadow-amber-900/20">
+                                    Roll for Cookie (100 Bits)
+                                </button>
                             </div>
                         )}
 
                         {activeTab === 'inventory' && (
-                            <Inventory state={gameState} onEquip={handleEquip} />
+                            <div className="grid grid-cols-2 gap-3">
+                                {gameState.cookies.map(c => (
+                                    <div key={c.id} className={`p-4 rounded-2xl border ${gameState.activeCookieId === c.id ? 'border-amber-500 bg-amber-500/10' : 'border-white/5 bg-zinc-900'}`}>
+                                        <div className="w-8 h-8 rounded-full mb-2" style={{ backgroundColor: c.colorHex }}></div>
+                                        <div className="text-xs font-bold truncate">{c.name}</div>
+                                        <div className="text-[10px] opacity-50 uppercase">{c.rarity}</div>
+                                        <button onClick={() => setGameState(p => ({...p, activeCookieId: c.id}))} className="mt-3 w-full text-[10px] font-bold bg-white/5 py-1 rounded-md">EQUIP</button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </main>
 
-                    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-white/5 flex justify-around p-4 pb-8">
-                        <button onClick={() => setActiveTab('roll')} className={activeTab === 'roll' ? 'text-amber-500' : 'text-zinc-500'}>
-                            <Lucide.Cookie size={28} />
-                        </button>
-                        <button onClick={() => setActiveTab('inventory')} className={activeTab === 'inventory' ? 'text-amber-500' : 'text-zinc-500'}>
-                            <Lucide.LayoutGrid size={28} />
-                        </button>
-                        <button onClick={() => setActiveTab('shop')} className={activeTab === 'shop' ? 'text-amber-500' : 'text-zinc-500'}>
-                            <Lucide.ShoppingBag size={28} />
-                        </button>
+                    {/* Navigation */}
+                    <nav className="bg-zinc-900/90 backdrop-blur-xl border-t border-white/5 px-6 pt-4 pb-8 safe-bottom flex justify-between items-center">
+                        <NavButton active={activeTab === 'roll'} icon={Lucide.Cookie} label="Roll" onClick={() => setActiveTab('roll')} />
+                        <NavButton active={activeTab === 'inventory'} icon={Lucide.LayoutGrid} label="Stash" onClick={() => setActiveTab('inventory')} />
+                        <NavButton active={activeTab === 'upgrades'} icon={Lucide.ArrowUpCircle} label="Upgrades" onClick={() => setActiveTab('upgrades')} />
+                        <NavButton active={activeTab === 'shop'} icon={Lucide.ShoppingBag} label="Shop" onClick={() => setActiveTab('shop')} />
                     </nav>
                 </div>
             );
