@@ -1,133 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Generator</title>
-
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Cookie RNG: Infinite Crumb</title>
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Cookie RNG">
 
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1160/1160358.png">
-
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+    
     <style>
-        /* Minimal layout to make it functional */
         body {
-            background: #121212;
-            color: white;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
-        #output {
-            margin-bottom: 20px;
-            padding: 20px;
-            border-radius: 10px;
-            background: #1e1e1e;
-            width: 80%;
-            text-align: center;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: none;
-            background: #007AFF;
-            color: white;
-            cursor: pointer;
-        }
+        h1, h2, h3, .font-display { font-family: 'Fredoka', sans-serif; }
+        
+        /* Original Animations from index.html */
+        .cookie-spin { animation: spin-slow 20s linear infinite; }
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1.2); opacity: 0; } }
+        @keyframes crumble { 0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) rotate(var(--r)) scale(0); opacity: 0; } }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .animate-popIn { animation: popIn 0.3s ease-out forwards; }
+        .animate-floatUp { animation: floatUp 0.8s ease-out forwards; }
+        .animate-crumble { animation: crumble 0.6s ease-in forwards; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2d2d2d; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
     </style>
 </head>
 <body>
-
-    <div id="output">
-        <h2 id="name">Ready</h2>
-        <p id="description">Click the button to run your logic.</p>
-    </div>
-    <button id="runBtn">Generate</button>
+    <div id="root"></div>
 
     <script type="importmap">
     {
-      "imports": {
-        "@google/generative-ai": "https://esm.run/@google/generative-ai"
-      }
+        "imports": {
+            "react": "https://esm.sh/react@18",
+            "react-dom/client": "https://esm.sh/react-dom@18/client",
+            "lucide-react": "https://esm.sh/lucide-react"
+        }
     }
     </script>
 
     <script type="module">
-        import { GoogleGenerativeAI } from "@google/generative-ai";
+        import React, { useState, useEffect, useCallback, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import * as Lucide from 'lucide-react';
 
-        // Browser version of your setup
-        const API_KEY = window.localStorage.getItem('USER_KEY') || prompt("Enter API Key:");
-        if (API_KEY) window.localStorage.setItem('USER_KEY', API_KEY);
-        
-        const genAI = new GoogleGenerativeAI(API_KEY || '');
+        // --- CONSTANTS & TYPES (From constants.ts & types.ts) ---
+        const Rarity = {
+            COMMON: 'Common', UNCOMMON: 'Uncommon', RARE: 'Rare', 
+            ULTRA_RARE: 'Ultra Rare', EPIC: 'Epic', LEGENDARY: 'Legendary', 
+            MYTHICAL: 'Mythical', ASCENDED: 'Ascended', DIVINE: 'Divine'
+        };
 
-        // --- START OF YOUR ORIGINAL CODE LOGIC ---
-        export const generateContent = async () => {
-          if (!API_KEY) throw new Error("API Key missing");
+        const RARITY_COLORS = {
+            [Rarity.COMMON]: '#A0A0A0', [Rarity.UNCOMMON]: '#4ADE80', [Rarity.RARE]: '#60A5FA',
+            [Rarity.ULTRA_RARE]: '#9333EA', [Rarity.EPIC]: '#C084FC', [Rarity.LEGENDARY]: '#FACC15',
+            [Rarity.MYTHICAL]: '#F43F5E', [Rarity.ASCENDED]: '#22D3EE', [Rarity.DIVINE]: '#FFFFFF'
+        };
 
-          const modelId = "gemini-1.5-flash"; // updated to stable version
+        const RARITY_DURABILITY = {
+            [Rarity.COMMON]: 50, [Rarity.UNCOMMON]: 100, [Rarity.RARE]: 250,
+            [Rarity.ULTRA_RARE]: 600, [Rarity.EPIC]: 1000, [Rarity.LEGENDARY]: 2500,
+            [Rarity.MYTHICAL]: 5000, [Rarity.ASCENDED]: 10000, [Rarity.DIVINE]: 25000
+        };
 
-          // This is the prompt from your file
-          const prompt = `
-            Create a unique, fantasy-themed item.
-            Return the result in strictly valid JSON format:
-            {
-              "name": "string",
-              "description": "string",
-              "colorHex": "string",
-              "baseValue": number
-            }
-          `;
+        const UPGRADE_COSTS = {
+            clickPower: (l) => Math.floor(50 * Math.pow(1.5, l)),
+            luck: (l) => l < 5 ? [250, 500, 600, 700, 888, 1000][l] : Math.floor(1000 * Math.pow(1.5, l - 4)),
+            autoClicker: (l) => l < 5 ? [300, 500, 680, 790, 1000][l] : Math.floor(1000 * Math.pow(1.5, l - 4)),
+            ascension: (l) => l === 0 ? 100000 : l === 1 ? 500000 : 999999999
+        };
 
-          try {
-            const model = genAI.getGenerativeModel({ model: modelId });
-            const result = await model.generateContent({
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
+        // --- COMPONENTS ---
+
+        // 1. Inventory Component (From Inventory.tsx)
+        const Inventory = ({ state, onSell, onEquip }) => {
+            const sorted = [...state.cookies].sort((a, b) => (b.baseValue - a.baseValue));
+            return (
+                <div className="p-4 grid grid-cols-2 gap-4 max-w-md mx-auto">
+                    {sorted.map(cookie => (
+                        <div key={cookie.id} className="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
+                            <div className="w-10 h-10 rounded-full mb-2" style={{ backgroundColor: cookie.colorHex }}></div>
+                            <h4 className="text-sm font-bold truncate">{cookie.name}</h4>
+                            <p className="text-[10px] text-zinc-500 uppercase">{cookie.rarity}</p>
+                            <button 
+                                onClick={() => onEquip(cookie.id)}
+                                className={`mt-2 w-full text-xs py-1 rounded ${state.activeCookieId === cookie.id ? 'bg-amber-600' : 'bg-zinc-700'}`}
+                            >
+                                {state.activeCookieId === cookie.id ? 'Equipped' : 'Equip'}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // 2. Main Game Logic (From App.tsx & CookieClicker.tsx)
+        const App = () => {
+            const [gameState, setGameState] = useState({
+                bits: 0, totalBitsEarned: 0, clickCount: 0, cookies: [],
+                upgrades: { clickPowerLevel: 1, luckLevel: 0, autoClickerLevel: 0, ascensionLevel: 0 },
+                activeEffects: { clickMultiplier: 1, clickMultiplierEndTime: 0, protectedClicks: 0 },
+                activeCookieId: undefined
             });
+            const [activeTab, setActiveTab] = useState('roll');
 
-            const data = JSON.parse(result.response.text());
-
-            return {
-              name: data.name,
-              description: data.description,
-              rarity: "Divine",
-              baseValue: data.baseValue,
-              colorHex: data.colorHex,
-              isAiGenerated: true,
+            const handleCookieClick = () => {
+                const activeCookie = gameState.cookies.find(c => c.id === gameState.activeCookieId);
+                const cookieMult = activeCookie ? activeCookie.baseValue : 1;
+                const power = gameState.upgrades.clickPowerLevel * cookieMult;
+                
+                setGameState(prev => ({
+                    ...prev,
+                    bits: prev.bits + power,
+                    totalBitsEarned: prev.totalBitsEarned + power,
+                    clickCount: prev.clickCount + 1
+                }));
             };
-          } catch (error) {
-            console.error("Malfunction:", error);
-            return {
-              name: "Error",
-              description: "The system sputtered.",
-              rarity: "Divine",
-              baseValue: 0,
-              colorHex: "#333333",
-              isAiGenerated: true,
-            };
-          }
-        };
-        // --- END OF YOUR ORIGINAL CODE LOGIC ---
 
-        document.getElementById('runBtn').onclick = async () => {
-            const outName = document.getElementById('name');
-            const outDesc = document.getElementById('description');
-            
-            outName.innerText = "Loading...";
-            const data = await generateContent();
-            
-            outName.innerText = data.name;
-            outName.style.color = data.colorHex;
-            outDesc.innerText = data.description;
+            const handleEquip = (id) => setGameState(prev => ({ ...prev, activeCookieId: id }));
+
+            return (
+                <div className="min-h-screen flex flex-col items-center">
+                    <header className="w-full max-w-md flex justify-between items-center p-6 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
+                        <h1 className="text-xl font-bold text-amber-500">Cookie RNG</h1>
+                        <div className="flex items-center gap-2 bg-black/40 px-4 py-1.5 rounded-full border border-white/5">
+                            <span className="text-amber-400 font-mono font-bold">{Math.floor(gameState.bits).toLocaleString()}</span>
+                            <Lucide.Zap size={14} className="text-amber-400" />
+                        </div>
+                    </header>
+
+                    <main className="flex-1 w-full max-w-md pb-24">
+                        {activeTab === 'roll' && (
+                            <div className="flex flex-col items-center justify-center pt-20">
+                                <button 
+                                    onClick={handleCookieClick}
+                                    className="relative transition-transform active:scale-90 duration-75"
+                                >
+                                    <div className="absolute inset-0 blur-3xl opacity-20 bg-amber-600 rounded-full"></div>
+                                    <Lucide.Cookie size={160} className="text-amber-700 drop-shadow-2xl relative z-0" />
+                                </button>
+                                <div className="mt-12 text-center animate-pulse text-zinc-500 uppercase tracking-widest text-sm">
+                                    Tap to Crumble
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'inventory' && (
+                            <Inventory state={gameState} onEquip={handleEquip} />
+                        )}
+                    </main>
+
+                    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-white/5 flex justify-around p-4 pb-8">
+                        <button onClick={() => setActiveTab('roll')} className={activeTab === 'roll' ? 'text-amber-500' : 'text-zinc-500'}>
+                            <Lucide.Cookie size={28} />
+                        </button>
+                        <button onClick={() => setActiveTab('inventory')} className={activeTab === 'inventory' ? 'text-amber-500' : 'text-zinc-500'}>
+                            <Lucide.LayoutGrid size={28} />
+                        </button>
+                        <button onClick={() => setActiveTab('shop')} className={activeTab === 'shop' ? 'text-amber-500' : 'text-zinc-500'}>
+                            <Lucide.ShoppingBag size={28} />
+                        </button>
+                    </nav>
+                </div>
+            );
         };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>
