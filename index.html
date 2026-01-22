@@ -5,103 +5,168 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <title>Cookie RNG: Infinite Crumb</title>
     
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #1a1a1a; color: #f3f4f6; margin: 0; overflow: hidden; }
-        h1 { font-family: 'Fredoka', sans-serif; }
-        .cookie-spin { animation: rotate 20s linear infinite; }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+      /* Your Original CSS from index.html */
+      body { font-family: 'Inter', sans-serif; background-color: #111; color: #f3f4f6; overflow: hidden; margin: 0; height: 100vh; }
+      h1, h2, h3, .font-display { font-family: 'Fredoka', sans-serif; }
+      .cookie-spin { animation: spin-slow 20s linear infinite; }
+      @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      
+      /* Click & UI Effects */
+      @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1.2); opacity: 0; } }
+      * { -webkit-touch-callout: none; -webkit-user-select: none; touch-action: manipulation; }
+      
+      .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useCallback } = React;
 
-        const COOKIES = [
+        // --- CONSTANTS FROM YOUR APP ---
+        const RARITIES = [
             { name: "CHRONO COOKIE", rarity: "DIVINE", chance: 0.001, color: "text-cyan-400" },
             { name: "Golden Chip", rarity: "RARE", chance: 0.05, color: "text-yellow-400" },
-            { name: "Sugar Frost", rarity: "UNCOMMON", chance: 0.2, color: "text-white" },
+            { name: "Sugar Frost", rarity: "UNCOMMON", chance: 0.2, color: "text-blue-100" },
             { name: "Classic Cookie", rarity: "COMMON", chance: 1.0, color: "text-zinc-500" }
         ];
 
-        function App() {
-            const [bits, setBits] = useState(() => Number(localStorage.getItem('bits')) || 0);
-            const [luck, setLuck] = useState(() => Number(localStorage.getItem('luck')) || 1.0);
+        const App = () => {
+            // --- STATE FROM YOUR APP.TSX ---
+            const [bits, setBits] = useState(() => Number(localStorage.getItem('cookie_bits')) || 0);
+            const [luck, setLuck] = useState(() => Number(localStorage.getItem('cookie_luck')) || 1.0);
             const [inventory, setInventory] = useState([]);
+            const [activeTab, setActiveTab] = useState('roll');
+            const [showSecret, setShowSecret] = useState(false);
+            const [secretInput, setSecretInput] = useState('');
 
+            // --- SAVE LOGIC ---
             useEffect(() => {
-                localStorage.setItem('bits', bits);
-                localStorage.setItem('luck', luck);
-            }, [bits, luck]);
+                localStorage.setItem('cookie_bits', bits);
+                localStorage.setItem('cookie_luck', luck);
+                if(window.lucide) lucide.createIcons();
+            }, [bits, luck, activeTab]);
 
-            const roll = () => {
-                const r = Math.random() / luck;
-                const found = COOKIES.find(c => r <= c.chance) || COOKIES[3];
-                setInventory(prev => [found, ...prev].slice(0, 10));
+            // --- GAME LOGIC ---
+            const handleCookieClick = () => {
+                const power = 1 * luck;
+                setBits(prev => prev + power);
             };
 
-            const buyLuck = () => {
-                const cost = Math.floor(50 * Math.pow(1.5, (luck - 1) * 2));
-                if (bits >= cost) {
-                    setBits(bits - cost);
-                    setLuck(luck + 0.5);
+            const roll = () => {
+                const cost = 500;
+                if (bits < cost) return alert("Not enough bits!");
+                setBits(prev => prev - cost);
+                
+                const r = Math.random() / luck;
+                const found = RARITIES.find(c => r <= c.chance) || RARITIES[3];
+                setInventory(prev => [found, ...prev].slice(0, 15));
+            };
+
+            const handleSecretSubmit = (e) => {
+                e.preventDefault();
+                if (secretInput === "chronocookie") {
+                    setBits(999999999);
+                    setLuck(50);
+                    alert("TIMELINE ALTERED");
                 }
+                setShowSecret(false);
+                setSecretInput('');
             };
 
             return (
-                <div className="flex flex-col items-center justify-between min-h-screen p-6 pb-12">
-                    <div className="text-center mt-8">
-                        <h1 className="text-4xl font-bold text-amber-500 italic">COOKIE RNG</h1>
-                        <div className="flex gap-4 mt-2 justify-center font-mono text-zinc-500 text-xs">
-                            <span>BITS: {bits}</span>
-                            <span>LUCK: {luck.toFixed(1)}x</span>
+                <div className="flex flex-col h-screen max-w-2xl mx-auto bg-[#111] overflow-hidden border-x border-white/5">
+                    
+                    {/* Header: Bits & Luck */}
+                    <div className="p-8 pt-14 border-b border-white/5 bg-[#161616] flex justify-between items-end">
+                        <div>
+                            <h1 className="text-2xl font-bold text-amber-500 italic uppercase fredoka">Infinite Crumb</h1>
+                            <p className="text-[10px] text-zinc-500 font-mono mt-1 uppercase tracking-widest">Luck Multiplier: {luck.toFixed(1)}x</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-2xl font-black text-white">{Math.floor(bits).toLocaleString()}</p>
+                            <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Available Bits</p>
                         </div>
                     </div>
 
-                    <div 
-                        onClick={() => setBits(b => b + 1)}
-                        className="text-[150px] cursor-pointer active:scale-90 transition-transform cookie-spin"
-                    >
-                        🍪
-                    </div>
+                    {/* Content Area */}
+                    <div className="flex-grow overflow-y-auto p-6 flex flex-col items-center justify-center relative">
+                        {activeTab === 'roll' && (
+                            <>
+                                <div onClick={handleCookieClick} className="text-[160px] cursor-pointer cookie-spin active:scale-90 transition-transform select-none">
+                                    🍪
+                                </div>
+                                <div className="mt-12 w-full max-w-xs space-y-4">
+                                    <button onClick={roll} className="w-full bg-amber-600 py-5 rounded-[2rem] font-black text-lg shadow-[0_6px_0_#92400e] active:shadow-none active:translate-y-1 transition-all">
+                                        SUMMON (500)
+                                    </button>
+                                </div>
+                            </>
+                        )}
 
-                    <div className="w-full max-w-sm space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <button onClick={roll} className="bg-amber-600 py-4 rounded-2xl font-black uppercase text-sm shadow-lg">
-                                SUMMON
-                            </button>
-                            <button onClick={buyLuck} className="bg-zinc-800 py-4 rounded-2xl font-black uppercase text-sm border border-white/5">
-                                LUCK UP
-                            </button>
-                        </div>
-
-                        <div className="bg-zinc-900/80 p-4 rounded-2xl border border-white/5">
-                            <h2 className="text-[10px] uppercase font-black text-zinc-500 mb-2 tracking-widest text-center">Recent Stash</h2>
-                            <div className="space-y-2 h-32 overflow-y-auto">
+                        {activeTab === 'inventory' && (
+                            <div className="w-full h-full space-y-3">
+                                <h2 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-6">Recent Collection</h2>
                                 {inventory.map((item, i) => (
-                                    <div key={i} className="flex justify-between items-center text-sm border-b border-white/5 py-1">
-                                        <span className={item.color}>{item.name}</span>
-                                        <span className="text-[9px] opacity-40">{item.rarity}</span>
+                                    <div key={i} className="glass p-4 rounded-2xl flex justify-between items-center border border-white/5">
+                                        <span className={`${item.color} font-bold`}>{item.name}</span>
+                                        <span className="text-[9px] font-black opacity-30 uppercase">{item.rarity}</span>
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        )}
                     </div>
+
+                    {/* Navigation Bar */}
+                    <div className="flex border-t border-white/5 bg-[#161616] pb-8 pt-2">
+                        <button onClick={() => setActiveTab('roll')} className={`flex-1 flex flex-col items-center gap-1 ${activeTab === 'roll' ? 'text-amber-500' : 'text-zinc-600'}`}>
+                            <i data-lucide="cookie" className="w-5 h-5"></i>
+                            <span className="text-[9px] font-black uppercase">Game</span>
+                        </button>
+                        <button onClick={() => setActiveTab('inventory')} className={`flex-1 flex flex-col items-center gap-1 ${activeTab === 'inventory' ? 'text-amber-500' : 'text-zinc-600'}`}>
+                            <i data-lucide="layout-grid" className="w-5 h-5"></i>
+                            <span className="text-[9px] font-black uppercase">Inventory</span>
+                        </button>
+                        <button onClick={() => setShowSecret(true)} className="flex-1 flex flex-col items-center gap-1 text-red-900/20 hover:text-red-500 transition-colors">
+                            <i data-lucide="terminal" className="w-5 h-5"></i>
+                            <span className="text-[9px] font-black uppercase">Secret</span>
+                        </button>
+                    </div>
+
+                    {/* Secret Modal */}
+                    {showSecret && (
+                        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6 backdrop-blur-md">
+                            <form onSubmit={handleSecretSubmit} className="w-full max-w-sm glass p-8 rounded-[2.5rem] border-red-900/30">
+                                <h3 className="text-red-500 font-black mb-6 uppercase tracking-widest text-center">System Override</h3>
+                                <input 
+                                    autoFocus
+                                    className="w-full bg-black/50 border border-white/10 p-4 rounded-xl text-center font-mono text-white mb-4 outline-none focus:border-red-500"
+                                    placeholder="ENTER CODE"
+                                    value={secretInput}
+                                    onChange={(e) => setSecretInput(e.target.value)}
+                                />
+                                <div className="flex gap-2">
+                                    <button type="submit" className="flex-1 bg-red-900/20 text-red-500 font-bold py-3 rounded-xl border border-red-900/50">Execute</button>
+                                    <button type="button" onClick={() => setShowSecret(false)} className="px-6 py-3 text-zinc-500">Close</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
                 </div>
             );
-        }
+        };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
