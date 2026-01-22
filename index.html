@@ -6,207 +6,175 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Cookie RNG: Infinite Crumb</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
     
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #1a1a1a;
+        color: #f3f4f6;
+        overflow: hidden; /* Lock body for app feel */
+        height: 100vh;
+      }
+      h1, h2, h3, .font-display { font-family: 'Fredoka', sans-serif; }
+      .cookie-spin { animation: spin-slow 20s linear infinite; }
+      @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1.2); opacity: 0; } }
+      @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      
+      /* Fullscreen background fix */
+      :fullscreen { background-color: #111; }
+      :-webkit-full-screen { background-color: #111; }
+
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #2d2d2d; }
+      ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+
     <script type="importmap">
     {
       "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react": "https://esm.sh/react@19.2.3",
+        "react-dom": "https://esm.sh/react-dom@19.2.3",
         "lucide-react": "https://esm.sh/lucide-react@0.454.0"
       }
     }
     </script>
-
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #111;
-            color: #f3f4f6;
-            margin: 0;
-            overflow: hidden; /* Prevent scrolling on the body */
-            height: 100vh;
-            width: 100vw;
-        }
-        h1, h2, h3, .font-display { font-family: 'Fredoka', sans-serif; }
-        
-        /* Hide Toolbar / Fullscreen utility */
-        :fullscreen { background-color: #111; }
-        
-        .cookie-spin { animation: spin-slow 20s linear infinite; }
-        @keyframes spin-slow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        @keyframes popIn {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1a1a1a; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-        
-        /* Utility for No Scrollbar */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="module">
-        import React, { useState, useEffect, useCallback, useMemo } from 'react';
+        import React, { useState, useEffect, useCallback } from 'react';
         import ReactDOM from 'react-dom';
         import * as Lucide from 'lucide-react';
 
-        // --- Constants (Simplified for Single File) ---
-        const RARITY_DURABILITY = { COMMON: 50, UNCOMMON: 100, RARE: 250, EPIC: 500, LEGENDARY: 1000, MYTHIC: 5000, DIVINE: 1000000 };
-        const UPGRADE_COSTS = {
-            clickPower: (lvl) => Math.floor(10 * Math.pow(1.5, lvl)),
-            luck: (lvl) => Math.floor(100 * Math.pow(2.5, lvl)),
-            autoClicker: (lvl) => Math.floor(50 * Math.pow(2, lvl)),
-            ascension: (lvl) => 1000000 * (lvl + 1)
-        };
+        /** * NOTE: To keep the file functional, ensure you paste your 
+         * sub-component code (Inventory, RngSystem, etc.) into this script block.
+         * For this version, I've integrated the core App logic from your file.
+         **/
 
         const INITIAL_STATE = {
-            bits: 0,
-            totalBitsEarned: 0,
-            clickCount: 0,
-            cookies: [],
-            upgrades: { clickPowerLevel: 1, luckLevel: 0, autoClickerLevel: 0, ascensionLevel: 0 },
-            activeEffects: { clickMultiplier: 1, clickMultiplierEndTime: 0, protectedClicks: 0 },
-            unlockedRarities: [],
-            activeCookieId: undefined,
-            settings: { soundEnabled: true },
-            cheatMode: false,
-            chronoSpawnerUnlocked: false,
-            claimedQuestIds: []
+          bits: 0,
+          totalBitsEarned: 0,
+          clickCount: 0,
+          cookies: [],
+          upgrades: { clickPowerLevel: 1, luckLevel: 0, autoClickerLevel: 0, ascensionLevel: 0 },
+          activeEffects: { clickMultiplier: 1, clickMultiplierEndTime: 0, protectedClicks: 0 },
+          unlockedRarities: [],
+          activeCookieId: undefined,
+          settings: { soundEnabled: true },
+          cheatMode: false,
+          chronoSpawnerUnlocked: false,
+          claimedQuestIds: []
         };
 
-        // --- Mock Components (Placeholders for original imports) ---
-        const Placeholder = ({ name }) => (
-            <div className="p-8 text-center border-2 border-dashed border-gray-800 rounded-xl text-gray-600">
-                {name} component would render here. Ensure you include the logic from your sub-files.
-            </div>
-        );
-
-        // --- Main App Logic ---
         const App = () => {
-            const [gameState, setGameState] = useState(INITIAL_STATE);
-            const [activeTab, setActiveTab] = useState('roll');
-            const [toast, setToast] = useState(null);
-            const [showSecretInput, setShowSecretInput] = useState(false);
-            const [secretCodeInput, setSecretCodeInput] = useState('');
+          // --- UI / Fullscreen Logic ---
+          const toggleFullscreen = () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e => console.error(e));
+            }
+          };
 
-            // Fullscreen / Hide Toolbar Logic
-            const enterFullscreen = () => {
-                const elem = document.documentElement;
-                if (elem.requestFullscreen) elem.requestFullscreen();
-                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-            };
+          const [gameState, setGameState] = useState(INITIAL_STATE);
+          const [activeTab, setActiveTab] = useState('roll');
+          const [toast, setToast] = useState(null);
+          const [showSecretInput, setShowSecretInput] = useState(false);
+          const [secretCodeInput, setSecretCodeInput] = useState('');
 
-            // Persistence
-            useEffect(() => {
-                const saved = localStorage.getItem('cookie_rng_save_v3');
-                if (saved) setGameState(prev => ({ ...prev, ...JSON.parse(saved) }));
-            }, []);
+          // --- Persistence (From App.tsx) ---
+          useEffect(() => {
+            const saved = localStorage.getItem('cookie_rng_save_v3');
+            if (saved) {
+              try {
+                const parsed = JSON.parse(saved);
+                setGameState(prev => ({ ...prev, ...parsed }));
+              } catch (e) { console.error("Save file corrupted", e); }
+            }
+          }, []);
 
-            useEffect(() => {
-                localStorage.setItem('cookie_rng_save_v3', JSON.stringify(gameState));
-            }, [gameState]);
+          useEffect(() => {
+            const timer = setTimeout(() => {
+              localStorage.setItem('cookie_rng_save_v3', JSON.stringify(gameState));
+            }, 1000);
+            return () => clearTimeout(timer);
+          }, [gameState]);
 
-            const handleCookieClick = () => {
-                const power = gameState.upgrades.clickPowerLevel * gameState.activeEffects.clickMultiplier;
-                setGameState(prev => ({
-                    ...prev,
-                    bits: prev.bits + power,
-                    clickCount: prev.clickCount + 1,
-                    totalBitsEarned: prev.totalBitsEarned + power
-                }));
-            };
+          // --- Core Handlers (Keeping your exact logic) ---
+          const getClickPower = useCallback(() => {
+            const base = gameState.upgrades.clickPowerLevel;
+            let ascensionBonus = 0;
+            if (gameState.upgrades.ascensionLevel === 1) ascensionBonus = 3;
+            if (gameState.upgrades.ascensionLevel >= 2) ascensionBonus = 8;
+            const collectionBonus = gameState.cookies.reduce((sum, cookie) => sum + cookie.baseValue, 0);
+            const rawPower = base + ascensionBonus + (collectionBonus * 0.1);
+            return rawPower * gameState.activeEffects.clickMultiplier;
+          }, [gameState.upgrades, gameState.cookies, gameState.activeEffects.clickMultiplier]);
 
-            const toggleSound = () => {
-                setGameState(prev => ({
-                    ...prev,
-                    settings: { ...prev.settings, soundEnabled: !prev.settings.soundEnabled }
-                }));
-            };
+          const handleCookieClick = () => {
+            toggleFullscreen(); // Attempt to hide toolbar on first click
+            const power = getClickPower();
+            setGameState(prev => ({
+              ...prev,
+              bits: prev.bits + power,
+              totalBitsEarned: prev.totalBitsEarned + power,
+              clickCount: prev.clickCount + 1
+            }));
+          };
 
-            return (
-                <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-[#111]">
-                    
-                    {/* Sidebar / Clicker */}
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-white/5 bg-[#161616] flex flex-col">
-                        <div className="p-6 flex justify-between items-center">
-                            <h1 onClick={enterFullscreen} className="text-xl font-display font-bold text-amber-500 cursor-pointer">Infinite Crumb</h1>
-                            <button onClick={toggleSound} className="p-2 bg-gray-800 rounded-full">
-                                {gameState.settings.soundEnabled ? <Lucide.Volume2 size={18}/> : <Lucide.VolumeX size={18}/>}
-                            </button>
-                        </div>
-                        
-                        <div className="flex-grow flex flex-col items-center justify-center p-4">
-                            <div 
-                                onClick={handleCookieClick}
-                                className="w-48 h-48 bg-amber-800 rounded-full cursor-pointer shadow-[0_0_50px_rgba(217,119,6,0.2)] hover:scale-105 active:scale-95 transition-transform flex items-center justify-center border-8 border-amber-900/50"
-                            >
-                                <Lucide.Cookie size={80} className="text-amber-200" />
-                            </div>
-                            <div className="mt-8 text-center">
-                                <div className="text-4xl font-bold text-white tracking-tighter">{Math.floor(gameState.bits).toLocaleString()}</div>
-                                <div className="text-amber-500 font-mono text-sm uppercase tracking-widest">Cookie Bits</div>
-                            </div>
-                        </div>
-                    </div>
+          // Rendering your original layout
+          return (
+            <div className="min-h-screen bg-[#111] text-gray-100 flex flex-col md:flex-row max-w-7xl mx-auto overflow-hidden relative">
+              
+              {/* Secret Button */}
+              <button onClick={() => setShowSecretInput(true)} className="fixed right-0 top-1/2 -translate-y-1/2 w-10 h-24 bg-red-900/50 border-l-2 border-red-500 z-[999] rounded-l-xl flex items-center justify-center">
+                 <span className="-rotate-90 text-[10px] font-bold text-red-200 uppercase tracking-widest">Secret</span>
+              </button>
 
-                    {/* Main Content Area */}
-                    <div className="w-full md:w-2/3 flex flex-col bg-[#111]">
-                        <nav className="flex border-b border-white/5 bg-[#161616] no-scrollbar overflow-x-auto">
-                            {[
-                                { id: 'roll', icon: Lucide.Cookie, label: 'Summon' },
-                                { id: 'inventory', icon: Lucide.LayoutGrid, label: 'Inv' },
-                                { id: 'upgrades', icon: Lucide.ArrowUpCircle, label: 'Tech' },
-                                { id: 'shop', icon: Lucide.ShoppingBag, label: 'Shop' }
-                            ].map(tab => (
-                                <button 
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`flex-1 py-4 px-4 flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all ${activeTab === tab.id ? 'text-amber-500 border-b-2 border-amber-500 bg-white/5' : 'text-gray-500'}`}
-                                >
-                                    <tab.icon size={16} /> {tab.label}
-                                </button>
-                            ))}
-                        </nav>
-
-                        <div className="flex-grow p-6 overflow-y-auto">
-                            <h2 className="text-2xl font-bold mb-4 capitalize">{activeTab}</h2>
-                            <Placeholder name={activeTab} />
-                            
-                            <div className="mt-8 p-4 bg-white/5 rounded-lg border border-white/10">
-                                <p className="text-gray-400 text-sm italic">
-                                    Tip: Tap the "Infinite Crumb" logo to attempt to enter Fullscreen mode and hide toolbars.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Secret Access */}
-                    <button 
-                        onClick={() => setShowSecretInput(true)}
-                        className="fixed right-0 top-1/2 -translate-y-1/2 w-2 h-16 bg-white/10 hover:bg-red-500/20 transition-colors"
-                    />
+              {/* Left Panel */}
+              <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-white/5 bg-[#161616] flex flex-col relative z-10 h-[40vh] md:h-screen">
+                <div className="p-6 border-b border-white/5 flex justify-between">
+                  <h1 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600">Infinite Crumb</h1>
                 </div>
-            );
+                
+                <div className="flex-grow flex flex-col items-center justify-center" onClick={handleCookieClick}>
+                   <div className="text-center mb-4">
+                      <div className="text-4xl font-bold text-white tracking-tighter">{Math.floor(gameState.bits).toLocaleString()}</div>
+                      <div className="text-amber-500 font-mono text-xs uppercase">Cookie Bits</div>
+                   </div>
+                   <div className="w-48 h-48 bg-amber-900/20 rounded-full flex items-center justify-center border-4 border-amber-600/30 animate-pulse cursor-pointer">
+                      <Lucide.Cookie size={80} className="text-amber-500" />
+                   </div>
+                </div>
+              </div>
+
+              {/* Right Panel */}
+              <div className="w-full md:w-2/3 flex flex-col h-[60vh] md:h-screen overflow-hidden">
+                <div className="flex border-b border-white/5 bg-[#161616] overflow-x-auto no-scrollbar">
+                   {['roll', 'inventory', 'quests', 'crates', 'upgrades', 'shop'].map(tab => (
+                     <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-4 px-2 text-[10px] font-bold uppercase transition-colors ${activeTab === tab ? 'text-amber-500 bg-white/5 border-b-2 border-amber-500' : 'text-gray-500'}`}>
+                        {tab}
+                     </button>
+                   ))}
+                </div>
+
+                <div className="flex-grow overflow-y-auto bg-[#111] p-4 relative">
+                   <div className="text-center py-20 text-gray-600 italic">
+                      {activeTab.toUpperCase()} View - Components logic from your sub-files should be placed here.
+                   </div>
+                </div>
+              </div>
+            </div>
+          );
         };
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(
+          <React.StrictMode><App /></React.StrictMode>
+        );
     </script>
 </body>
 </html>
