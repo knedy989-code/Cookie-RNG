@@ -5,160 +5,106 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
     <title>Cookie RNG: Infinite Crumb</title>
     
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
-    
-    <style>
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #1a1a1a;
-        color: #f3f4f6;
-        margin: 0;
-        height: 100vh;
-        overflow: hidden;
-        position: fixed;
-        width: 100%;
-      }
-      h1, .font-display { font-family: 'Fredoka', sans-serif; }
-      
-      /* THE AI STUDIO ANIMATIONS */
-      .cookie-spin { animation: spin-slow 20s linear infinite; }
-      @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      
-      .plus-one {
-        position: absolute;
-        pointer-events: none;
-        animation: floatUp 1s ease-out forwards;
-        font-weight: 800;
-        color: #fbbf24;
-      }
-      @keyframes floatUp {
-        0% { transform: translateY(0) scale(1); opacity: 1; }
-        100% { transform: translateY(-80px) scale(1.2); opacity: 0; }
-      }
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-      /* Prevent iPad Zoom/Selection */
-      * {
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-        touch-action: manipulation;
-      }
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #1a1a1a; color: #f3f4f6; margin: 0; overflow: hidden; }
+        h1 { font-family: 'Fredoka', sans-serif; }
+        .cookie-spin { animation: rotate 20s linear infinite; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
     </style>
 </head>
-<body class="flex flex-col items-center p-6">
+<body>
+    <div id="root"></div>
 
-    <div class="mt-12 text-center">
-        <h1 class="text-4xl font-extrabold text-amber-500 tracking-tight italic">COOKIE RNG</h1>
-        <p class="text-[10px] text-zinc-500 font-mono mt-1 uppercase tracking-[0.3em]">Infinite Crumb Edition</p>
-    </div>
-
-    <div class="flex gap-8 mt-6 bg-black/30 px-6 py-2 rounded-full border border-white/5 font-mono text-xs">
-        <div>BITS: <span id="bits-display" class="text-white font-bold">0</span></div>
-        <div>LUCK: <span id="luck-display" class="text-white font-bold">1.0</span>x</div>
-    </div>
-
-    <div class="flex-grow flex items-center justify-center relative">
-        <div id="cookie" class="text-[160px] cursor-pointer active:scale-90 transition-transform cookie-spin select-none">
-            🍪
-        </div>
-    </div>
-
-    <div class="w-full max-w-sm mb-8 space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-            <button onclick="roll()" class="bg-amber-600 hover:bg-amber-500 py-4 rounded-2xl font-black uppercase text-sm shadow-[0_5px_0_#92400e] active:shadow-none active:translate-y-[5px] transition-all">
-                SUMMON
-            </button>
-            <button onclick="buyLuck()" class="bg-zinc-800 hover:bg-zinc-700 py-4 rounded-2xl font-black uppercase text-sm border border-white/10 active:scale-95 transition-all">
-                LUCK UP (<span id="luck-cost">50</span>)
-            </button>
-        </div>
-
-        <div class="bg-zinc-900/80 backdrop-blur-md rounded-2xl p-4 border border-white/5">
-            <h2 class="text-[9px] uppercase font-black text-zinc-500 mb-3 tracking-widest">Recent Stash</h2>
-            <div id="inventory" class="h-28 overflow-y-auto space-y-2 pr-2">
-                </div>
-        </div>
-    </div>
-
-    <script>
-        // Game Logic from AI Studio
-        let bits = 0;
-        let luck = 1.0;
-        let luckCost = 50;
-        let inventory = [];
-
-        const bitsText = document.getElementById('bits-display');
-        const luckText = document.getElementById('luck-display');
-        const costText = document.getElementById('luck-cost');
-        const invList = document.getElementById('inventory');
-        const cookie = document.getElementById('cookie');
-
-        // Load Save
-        if(localStorage.getItem('crng_save')) {
-            const data = JSON.parse(localStorage.getItem('crng_save'));
-            bits = data.bits; luck = data.luck; luckCost = data.luckCost;
-            updateUI();
-        }
-
-        function save() {
-            localStorage.setItem('crng_save', JSON.stringify({bits, luck, luckCost}));
-        }
-
-        cookie.onclick = (e) => {
-            bits++;
-            createPlusOne(e.clientX, e.clientY);
-            updateUI();
-            save();
-        };
-
-        function createPlusOne(x, y) {
-            const el = document.createElement('div');
-            el.className = 'plus-one';
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            el.innerText = '+1';
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 1000);
-        }
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
         const COOKIES = [
-            { name: "CHRONO COOKIE", rarity: "DIVINE", chance: 0.001, color: "text-cyan-400 font-black shadow-cyan-500" },
-            { name: "Golden Chip", rarity: "RARE", chance: 0.05, color: "text-yellow-400 font-bold" },
+            { name: "CHRONO COOKIE", rarity: "DIVINE", chance: 0.001, color: "text-cyan-400" },
+            { name: "Golden Chip", rarity: "RARE", chance: 0.05, color: "text-yellow-400" },
             { name: "Sugar Frost", rarity: "UNCOMMON", chance: 0.2, color: "text-white" },
             { name: "Classic Cookie", rarity: "COMMON", chance: 1.0, color: "text-zinc-500" }
         ];
 
-        function roll() {
-            const r = Math.random() / luck;
-            const item = COOKIES.find(c => r <= c.chance) || COOKIES[3];
-            
-            const div = document.createElement('div');
-            div.className = "flex justify-between items-center py-2 border-b border-white/5 animate-pulse";
-            div.innerHTML = `<span class="${item.color}">${item.name}</span> <span class="text-[8px] opacity-40 font-bold uppercase">${item.rarity}</span>`;
-            
-            invList.prepend(div);
-            if(invList.children.length > 10) invList.lastChild.remove();
+        function App() {
+            const [bits, setBits] = useState(() => Number(localStorage.getItem('bits')) || 0);
+            const [luck, setLuck] = useState(() => Number(localStorage.getItem('luck')) || 1.0);
+            const [inventory, setInventory] = useState([]);
+
+            useEffect(() => {
+                localStorage.setItem('bits', bits);
+                localStorage.setItem('luck', luck);
+            }, [bits, luck]);
+
+            const roll = () => {
+                const r = Math.random() / luck;
+                const found = COOKIES.find(c => r <= c.chance) || COOKIES[3];
+                setInventory(prev => [found, ...prev].slice(0, 10));
+            };
+
+            const buyLuck = () => {
+                const cost = Math.floor(50 * Math.pow(1.5, (luck - 1) * 2));
+                if (bits >= cost) {
+                    setBits(bits - cost);
+                    setLuck(luck + 0.5);
+                }
+            };
+
+            return (
+                <div className="flex flex-col items-center justify-between min-h-screen p-6 pb-12">
+                    <div className="text-center mt-8">
+                        <h1 className="text-4xl font-bold text-amber-500 italic">COOKIE RNG</h1>
+                        <div className="flex gap-4 mt-2 justify-center font-mono text-zinc-500 text-xs">
+                            <span>BITS: {bits}</span>
+                            <span>LUCK: {luck.toFixed(1)}x</span>
+                        </div>
+                    </div>
+
+                    <div 
+                        onClick={() => setBits(b => b + 1)}
+                        className="text-[150px] cursor-pointer active:scale-90 transition-transform cookie-spin"
+                    >
+                        🍪
+                    </div>
+
+                    <div className="w-full max-w-sm space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={roll} className="bg-amber-600 py-4 rounded-2xl font-black uppercase text-sm shadow-lg">
+                                SUMMON
+                            </button>
+                            <button onClick={buyLuck} className="bg-zinc-800 py-4 rounded-2xl font-black uppercase text-sm border border-white/5">
+                                LUCK UP
+                            </button>
+                        </div>
+
+                        <div className="bg-zinc-900/80 p-4 rounded-2xl border border-white/5">
+                            <h2 className="text-[10px] uppercase font-black text-zinc-500 mb-2 tracking-widest text-center">Recent Stash</h2>
+                            <div className="space-y-2 h-32 overflow-y-auto">
+                                {inventory.map((item, i) => (
+                                    <div key={i} className="flex justify-between items-center text-sm border-b border-white/5 py-1">
+                                        <span className={item.color}>{item.name}</span>
+                                        <span className="text-[9px] opacity-40">{item.rarity}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
-        function buyLuck() {
-            if (bits >= luckCost) {
-                bits -= luckCost;
-                luck += 0.5;
-                luckCost = Math.floor(luckCost * 2.2);
-                updateUI();
-                save();
-            }
-        }
-
-        function updateUI() {
-            bitsText.innerText = bits.toLocaleString();
-            luckText.innerText = luck.toFixed(1);
-            costText.innerText = luckCost.toLocaleString();
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
