@@ -9,50 +9,47 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2592/2592209.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1160/1160358.png">
 
     <style>
-        /* Minimal UI since you don't have a CSS file */
+        /* Minimal layout to make it functional */
         body {
             background: #121212;
             color: white;
-            font-family: -apple-system, system-ui, sans-serif;
+            font-family: sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
+        }
+        #output {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #1e1e1e;
+            width: 80%;
             text-align: center;
         }
-        .app-container {
-            width: 85%;
-            padding: 20px;
-            background: #1e1e1e;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
         button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
             background: #007AFF;
             color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 20px;
+            cursor: pointer;
         }
-        #result-display { margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="app-container">
-        <h1 id="item-name">AI Generator</h1>
-        <p id="item-desc">Ready to generate.</p>
-        <div id="result-display"></div>
-        <button id="generateBtn">Generate Content</button>
+    <div id="output">
+        <h2 id="name">Ready</h2>
+        <p id="description">Click the button to run your logic.</p>
     </div>
+    <button id="runBtn">Generate</button>
 
     <script type="importmap">
     {
@@ -65,26 +62,28 @@
     <script type="module">
         import { GoogleGenerativeAI } from "@google/generative-ai";
 
-        // Browser Key Handling (Replacing process.env)
-        const API_KEY = window.localStorage.getItem('APP_API_KEY') || prompt("Enter Gemini API Key:");
-        if (API_KEY) window.localStorage.setItem('APP_API_KEY', API_KEY);
-
+        // Browser version of your setup
+        const API_KEY = window.localStorage.getItem('USER_KEY') || prompt("Enter API Key:");
+        if (API_KEY) window.localStorage.setItem('USER_KEY', API_KEY);
+        
         const genAI = new GoogleGenerativeAI(API_KEY || '');
 
-        // YOUR MODIFIED LOGIC (Oracle naming removed)
+        // --- START OF YOUR ORIGINAL CODE LOGIC ---
         export const generateContent = async () => {
           if (!API_KEY) throw new Error("API Key missing");
 
-          const modelId = "gemini-1.5-flash"; 
+          const modelId = "gemini-1.5-flash"; // updated to stable version
 
-          // Cleaned up prompt based on your file's structure
+          // This is the prompt from your file
           const prompt = `
             Create a unique, fantasy-themed item.
-            Return a JSON object with:
-            - name: A creative name.
-            - description: A one-sentence description.
-            - colorHex: A hex color representing its aura.
-            - baseValue: A number between 80 and 200.
+            Return the result in strictly valid JSON format:
+            {
+              "name": "string",
+              "description": "string",
+              "colorHex": "string",
+              "baseValue": number
+            }
           `;
 
           try {
@@ -99,6 +98,7 @@
             return {
               name: data.name,
               description: data.description,
+              rarity: "Divine",
               baseValue: data.baseValue,
               colorHex: data.colorHex,
               isAiGenerated: true,
@@ -106,27 +106,27 @@
           } catch (error) {
             console.error("Malfunction:", error);
             return {
-              name: "Error Item",
-              description: "Something went wrong during generation.",
+              name: "Error",
+              description: "The system sputtered.",
+              rarity: "Divine",
               baseValue: 0,
               colorHex: "#333333",
+              isAiGenerated: true,
             };
           }
         };
+        // --- END OF YOUR ORIGINAL CODE LOGIC ---
 
-        // UI Hook
-        document.getElementById('generateBtn').onclick = async () => {
-            const btn = document.getElementById('generateBtn');
-            btn.innerText = "Generating...";
+        document.getElementById('runBtn').onclick = async () => {
+            const outName = document.getElementById('name');
+            const outDesc = document.getElementById('description');
             
-            const content = await generateContent();
+            outName.innerText = "Loading...";
+            const data = await generateContent();
             
-            document.getElementById('item-name').innerText = content.name;
-            document.getElementById('item-name').style.color = content.colorHex;
-            document.getElementById('item-desc').innerText = content.description;
-            document.getElementById('result-display').innerHTML = `<strong>Value:</strong> ${content.baseValue}`;
-            
-            btn.innerText = "Generate Again";
+            outName.innerText = data.name;
+            outName.style.color = data.colorHex;
+            outDesc.innerText = data.description;
         };
     </script>
 </body>
