@@ -3,40 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oracle Oven</title>
+    <title>My App</title>
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Oracle Oven">
+    <meta name="apple-mobile-web-app-title" content="My App">
+
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1160/1160358.png">
 
     <style>
-        /* Your Styles Here */
-        body {
-            background-color: #1a1a1a;
-            color: white;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
-        #cookie-display {
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            border: 2px solid #555;
-        }
+        /* Add your CSS here */
+        body { margin: 0; padding: 20px; font-family: sans-serif; background: #121212; color: white; }
     </style>
 </head>
 <body>
 
-    <div id="cookie-display">
-        <h1>Oracle Oven</h1>
-        <button id="bakeBtn">Bake Divine Cookie</button>
-        <div id="result"></div>
+    <div id="app">
+        <h1>App Loaded</h1>
+        <p>Check the console or add your UI elements here.</p>
     </div>
 
     <script type="importmap">
@@ -50,24 +35,24 @@
     <script type="module">
         import { GoogleGenerativeAI } from "@google/generative-ai";
 
-        // Types and Enums (Preserved from your code)
+        // --- REPLACING YOUR EXTERNAL TYPES ---
         const Rarity = { DIVINE: "Divine" };
 
-        // Configuration - Using a prompt since process.env isn't available in browser
-        const API_KEY = window.localStorage.getItem('GEMINI_API_KEY') || prompt("Enter Gemini API Key:");
-        if (API_KEY) window.localStorage.setItem('GEMINI_API_KEY', API_KEY);
+        // --- YOUR ORIGINAL CODE START ---
+        // NOTE: In browser, we use localStorage instead of process.env
+        const API_KEY = window.localStorage.getItem('API_KEY') || prompt("Enter API Key:");
+        if (API_KEY) window.localStorage.setItem('API_KEY', API_KEY);
 
-        // Initialize Gemini
-        const genAI = new GoogleGenerativeAI(API_KEY || '');
+        const ai = new GoogleGenerativeAI(API_KEY || '');
 
         export const generateOracleCookie = async () => {
           if (!API_KEY) {
             throw new Error("API Key missing");
           }
 
-          const modelId = "gemini-1.5-flash"; // Updated to current stable flash model
+          const modelId = "gemini-1.5-flash"; // Using the latest stable Flash model
 
-          const promptText = `
+          const prompt = `
             You are the Oracle Oven, a mythical entity that bakes cookies with divine properties.
             Create a unique, fantasy-themed cookie.
             
@@ -82,17 +67,13 @@
           `;
 
           try {
-            const model = genAI.getGenerativeModel({ model: modelId });
-            
+            const model = ai.getGenerativeModel({ model: modelId });
             const result = await model.generateContent({
-              contents: [{ role: "user", parts: [{ text: promptText }] }],
-              generationConfig: {
-                responseMimeType: "application/json",
-              },
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
             });
 
-            const response = await result.response;
-            const text = response.text();
+            const text = result.response.text();
             if (!text) throw new Error("No response from Oracle Oven");
 
             const data = JSON.parse(text);
@@ -117,18 +98,14 @@
             };
           }
         };
+        // --- YOUR ORIGINAL CODE END ---
 
-        // UI Logic to run the code
-        document.getElementById('bakeBtn').addEventListener('click', async () => {
-            const display = document.getElementById('result');
-            display.innerHTML = "Baking...";
-            const cookie = await generateOracleCookie();
-            display.innerHTML = `
-                <h2 style="color: ${cookie.colorHex}">${cookie.name}</h2>
-                <p>${cookie.description}</p>
-                <small>Value: ${cookie.baseValue}</small>
-            `;
-        });
+        // Example of how to call your function:
+        window.bake = async () => {
+            const result = await generateOracleCookie();
+            console.log("Baked:", result);
+            alert("Baked: " + result.name);
+        };
     </script>
 </body>
 </html>
