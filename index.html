@@ -3,25 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My App</title>
+    <title>AI Generator</title>
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="My App">
 
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1160/1160358.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2592/2592209.png">
 
     <style>
-        /* Add your CSS here */
-        body { margin: 0; padding: 20px; font-family: sans-serif; background: #121212; color: white; }
+        /* Minimal UI since you don't have a CSS file */
+        body {
+            background: #121212;
+            color: white;
+            font-family: -apple-system, system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .app-container {
+            width: 85%;
+            padding: 20px;
+            background: #1e1e1e;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        #result-display { margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="app">
-        <h1>App Loaded</h1>
-        <p>Check the console or add your UI elements here.</p>
+    <div class="app-container">
+        <h1 id="item-name">AI Generator</h1>
+        <p id="item-desc">Ready to generate.</p>
+        <div id="result-display"></div>
+        <button id="generateBtn">Generate Content</button>
     </div>
 
     <script type="importmap">
@@ -35,76 +65,68 @@
     <script type="module">
         import { GoogleGenerativeAI } from "@google/generative-ai";
 
-        // --- REPLACING YOUR EXTERNAL TYPES ---
-        const Rarity = { DIVINE: "Divine" };
+        // Browser Key Handling (Replacing process.env)
+        const API_KEY = window.localStorage.getItem('APP_API_KEY') || prompt("Enter Gemini API Key:");
+        if (API_KEY) window.localStorage.setItem('APP_API_KEY', API_KEY);
 
-        // --- YOUR ORIGINAL CODE START ---
-        // NOTE: In browser, we use localStorage instead of process.env
-        const API_KEY = window.localStorage.getItem('API_KEY') || prompt("Enter API Key:");
-        if (API_KEY) window.localStorage.setItem('API_KEY', API_KEY);
+        const genAI = new GoogleGenerativeAI(API_KEY || '');
 
-        const ai = new GoogleGenerativeAI(API_KEY || '');
+        // YOUR MODIFIED LOGIC (Oracle naming removed)
+        export const generateContent = async () => {
+          if (!API_KEY) throw new Error("API Key missing");
 
-        export const generateOracleCookie = async () => {
-          if (!API_KEY) {
-            throw new Error("API Key missing");
-          }
+          const modelId = "gemini-1.5-flash"; 
 
-          const modelId = "gemini-1.5-flash"; // Using the latest stable Flash model
-
+          // Cleaned up prompt based on your file's structure
           const prompt = `
-            You are the Oracle Oven, a mythical entity that bakes cookies with divine properties.
-            Create a unique, fantasy-themed cookie.
-            
-            The cookie should be:
-            - Rarity: Divine (Extremely powerful and unique)
-            - Name: Creative, mythical, or sci-fi inspired.
-            - Description: A one-sentence lore description.
-            - ColorHex: A hex color code representing the cookie's aura.
-            - BaseValue: A number between 80 and 200.
-
-            Return the result in strictly valid JSON format matching the schema.
+            Create a unique, fantasy-themed item.
+            Return a JSON object with:
+            - name: A creative name.
+            - description: A one-sentence description.
+            - colorHex: A hex color representing its aura.
+            - baseValue: A number between 80 and 200.
           `;
 
           try {
-            const model = ai.getGenerativeModel({ model: modelId });
+            const model = genAI.getGenerativeModel({ model: modelId });
             const result = await model.generateContent({
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: { responseMimeType: "application/json" }
             });
 
-            const text = result.response.text();
-            if (!text) throw new Error("No response from Oracle Oven");
-
-            const data = JSON.parse(text);
+            const data = JSON.parse(result.response.text());
 
             return {
               name: data.name,
               description: data.description,
-              rarity: Rarity.DIVINE,
               baseValue: data.baseValue,
               colorHex: data.colorHex,
               isAiGenerated: true,
             };
           } catch (error) {
-            console.error("Oracle Oven malfunctioned:", error);
+            console.error("Malfunction:", error);
             return {
-              name: "Glitch Cookie",
-              description: "The Oracle Oven sputtered and produced this anomaly.",
-              rarity: Rarity.DIVINE,
-              baseValue: 77,
+              name: "Error Item",
+              description: "Something went wrong during generation.",
+              baseValue: 0,
               colorHex: "#333333",
-              isAiGenerated: true,
             };
           }
         };
-        // --- YOUR ORIGINAL CODE END ---
 
-        // Example of how to call your function:
-        window.bake = async () => {
-            const result = await generateOracleCookie();
-            console.log("Baked:", result);
-            alert("Baked: " + result.name);
+        // UI Hook
+        document.getElementById('generateBtn').onclick = async () => {
+            const btn = document.getElementById('generateBtn');
+            btn.innerText = "Generating...";
+            
+            const content = await generateContent();
+            
+            document.getElementById('item-name').innerText = content.name;
+            document.getElementById('item-name').style.color = content.colorHex;
+            document.getElementById('item-desc').innerText = content.description;
+            document.getElementById('result-display').innerHTML = `<strong>Value:</strong> ${content.baseValue}`;
+            
+            btn.innerText = "Generate Again";
         };
     </script>
 </body>
